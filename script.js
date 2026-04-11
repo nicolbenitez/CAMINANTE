@@ -1,10 +1,5 @@
-// Extend the base functionality of JavaScript
 Array.prototype.last = function () {
   return this[this.length - 1];
-};
-
-Math.sinus = function (degree) {
-  return Math.sin((degree / 180) * Math.PI);
 };
 
 let phase = "waiting";
@@ -26,15 +21,6 @@ const platformHeight = 100;
 const heroDistanceFromEdge = 10;
 const paddingX = 100;
 const perfectAreaSize = 10;
-
-const backgroundSpeedMultiplier = 0.2;
-
-const hill1BaseHeight = 100;
-const hill1Amplitude = 10;
-const hill1Stretch = 1;
-const hill2BaseHeight = 70;
-const hill2Amplitude = 20;
-const hill2Stretch = 0.5;
 
 const stretchingSpeed = 4;
 const turningSpeed = 4;
@@ -70,38 +56,14 @@ function resetGame() {
   scoreElement.innerText = score;
 
   platforms = [{ x: 50, w: 50 }];
-  generatePlatform();
-  generatePlatform();
-  generatePlatform();
-  generatePlatform();
+  for (let i = 0; i < 4; i++) generatePlatform();
 
   sticks = [{ x: platforms[0].x + platforms[0].w, length: 0, rotation: 0 }];
-
-  trees = [];
-  for (let i = 0; i < 10; i++) generateTree();
 
   heroX = platforms[0].x + platforms[0].w - heroDistanceFromEdge;
   heroY = 0;
 
   draw();
-}
-
-function generateTree() {
-  const minimumGap = 30;
-  const maximumGap = 150;
-
-  const lastTree = trees[trees.length - 1];
-  let furthestX = lastTree ? lastTree.x : 0;
-
-  const x =
-    furthestX +
-    minimumGap +
-    Math.floor(Math.random() * (maximumGap - minimumGap));
-
-  const treeColors = ["#00ffcc", "#00cc99", "#009977"]; // 🌳 neon
-  const color = treeColors[Math.floor(Math.random() * 3)];
-
-  trees.push({ x, color });
 }
 
 function generatePlatform() {
@@ -123,27 +85,27 @@ function generatePlatform() {
   platforms.push({ x, w });
 }
 
-window.addEventListener("mousedown", function () {
+window.addEventListener("mousedown", () => {
   if (phase == "waiting") {
     lastTimestamp = undefined;
     introductionElement.style.opacity = 0;
     phase = "stretching";
-    window.requestAnimationFrame(animate);
+    requestAnimationFrame(animate);
   }
 });
 
-window.addEventListener("mouseup", function () {
-  if (phase == "stretching") {
-    phase = "turning";
-  }
+window.addEventListener("mouseup", () => {
+  if (phase == "stretching") phase = "turning";
 });
 
-window.requestAnimationFrame(animate);
+restartButton.addEventListener("click", () => resetGame());
+
+requestAnimationFrame(animate);
 
 function animate(timestamp) {
   if (!lastTimestamp) {
     lastTimestamp = timestamp;
-    window.requestAnimationFrame(animate);
+    requestAnimationFrame(animate);
     return;
   }
 
@@ -162,6 +124,7 @@ function animate(timestamp) {
         sticks.last().rotation = 90;
 
         const [nextPlatform, perfectHit] = thePlatformTheStickHits();
+
         if (nextPlatform) {
           score += perfectHit ? 2 : 1;
           scoreElement.innerText = score;
@@ -172,8 +135,6 @@ function animate(timestamp) {
           }
 
           generatePlatform();
-          generateTree();
-          generateTree();
         }
 
         phase = "walking";
@@ -184,6 +145,7 @@ function animate(timestamp) {
       heroX += (timestamp - lastTimestamp) / walkingSpeed;
 
       const [nextPlatform] = thePlatformTheStickHits();
+
       if (nextPlatform) {
         const maxHeroX = nextPlatform.x + nextPlatform.w - heroDistanceFromEdge;
         if (heroX > maxHeroX) {
@@ -203,6 +165,7 @@ function animate(timestamp) {
       sceneOffset += (timestamp - lastTimestamp) / transitioningSpeed;
 
       const [nextPlat] = thePlatformTheStickHits();
+
       if (sceneOffset > nextPlat.x + nextPlat.w - paddingX) {
         sticks.push({
           x: nextPlat.x + nextPlat.w,
@@ -214,12 +177,9 @@ function animate(timestamp) {
       break;
 
     case "falling":
-      if (sticks.last().rotation < 180)
-        sticks.last().rotation += (timestamp - lastTimestamp) / turningSpeed;
-
       heroY += (timestamp - lastTimestamp) / fallingSpeed;
 
-      if (heroY > window.innerHeight) {
+      if (heroY > canvas.height) {
         restartButton.style.display = "block";
         return;
       }
@@ -227,27 +187,26 @@ function animate(timestamp) {
   }
 
   draw();
-  window.requestAnimationFrame(animate);
+  requestAnimationFrame(animate);
   lastTimestamp = timestamp;
 }
 
 function thePlatformTheStickHits() {
   const stickFarX = sticks.last().x + sticks.last().length;
 
-  const platformTheStickHits = platforms.find(
-    (platform) => platform.x < stickFarX && stickFarX < platform.x + platform.w
+  const platform = platforms.find(
+    (p) => p.x < stickFarX && stickFarX < p.x + p.w
   );
 
   if (
-    platformTheStickHits &&
-    platformTheStickHits.x + platformTheStickHits.w / 2 - perfectAreaSize / 2 <
-      stickFarX &&
-    stickFarX <
-      platformTheStickHits.x + platformTheStickHits.w / 2 + perfectAreaSize / 2
-  )
-    return [platformTheStickHits, true];
+    platform &&
+    platform.x + platform.w / 2 - perfectAreaSize / 2 < stickFarX &&
+    stickFarX < platform.x + platform.w / 2 + perfectAreaSize / 2
+  ) {
+    return [platform, true];
+  }
 
-  return [platformTheStickHits, false];
+  return [platform, false];
 }
 
 function draw() {
@@ -255,19 +214,53 @@ function draw() {
 
   drawBackground();
 
+  ctx.save();
   ctx.translate(-sceneOffset, 0);
 
   drawPlatforms();
   drawHero();
   drawSticks();
+
+  ctx.restore();
+}
+
+// 🔵 FONDO CON NUBES
+function drawBackground() {
+  var gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, "#4facfe");
+  gradient.addColorStop(1, "#1e3c72");
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "rgba(255,255,255,0.8)";
+
+  const time = Date.now() * 0.02;
+
+  for (let i = 0; i < 5; i++) {
+    let x = (time + i * 200) % (canvas.width + 200) - 100;
+    let y = 50 + i * 40;
+
+    drawCloud(x, y);
+  }
+}
+
+// ☁️ NUBE
+function drawCloud(x, y) {
+  ctx.beginPath();
+  ctx.arc(x, y, 20, 0, Math.PI * 2);
+  ctx.arc(x + 25, y + 10, 20, 0, Math.PI * 2);
+  ctx.arc(x - 25, y + 10, 20, 0, Math.PI * 2);
+  ctx.arc(x, y + 20, 20, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function drawPlatforms() {
   platforms.forEach(({ x, w }) => {
-    ctx.fillStyle = "#00e5ff"; // 🔷 neon platforms
+    ctx.fillStyle = "#333";
     ctx.fillRect(x, canvasHeight - platformHeight, w, platformHeight);
 
-    ctx.fillStyle = "#ff00ff"; // 🎯 perfect
+    ctx.fillStyle = "red";
     ctx.fillRect(
       x + w / 2 - perfectAreaSize / 2,
       canvasHeight - platformHeight,
@@ -278,11 +271,13 @@ function drawPlatforms() {
 }
 
 function drawHero() {
-  ctx.fillStyle = "#00e5ff"; // 🧍 hero
-  ctx.fillRect(heroX, canvasHeight - platformHeight - heroHeight, heroWidth, heroHeight);
-
-  ctx.fillStyle = "#ff00ff"; // 🎀 banda
-  ctx.fillRect(heroX, canvasHeight - platformHeight - heroHeight, heroWidth, 5);
+  ctx.fillStyle = "black";
+  ctx.fillRect(
+    heroX,
+    canvasHeight - platformHeight - heroHeight,
+    heroWidth,
+    heroHeight
+  );
 }
 
 function drawSticks() {
@@ -291,7 +286,6 @@ function drawSticks() {
     ctx.translate(stick.x, canvasHeight - platformHeight);
     ctx.rotate((Math.PI / 180) * stick.rotation);
 
-    ctx.strokeStyle = "#00ffcc"; // 🪵 neon stick
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(0, -stick.length);
@@ -299,13 +293,4 @@ function drawSticks() {
 
     ctx.restore();
   });
-}
-
-function drawBackground() {
-  var gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, "#0f2027"); // 🌌 dark sky
-  gradient.addColorStop(1, "#203a43");
-
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
