@@ -1,4 +1,8 @@
-// Extend functionality
+// SONIDOS
+const sonidoGanar = new Audio("win.mp3");
+const sonidoPerder = new Audio("lose.mp3");
+
+// Extend the base functionality of JavaScript
 Array.prototype.last = function () {
   return this[this.length - 1];
 };
@@ -6,10 +10,6 @@ Array.prototype.last = function () {
 Math.sinus = function (degree) {
   return Math.sin((degree / 180) * Math.PI);
 };
-
-// 🔊 SONIDOS
-const sonidoGanar = new Audio("win.mp3");
-const sonidoPerder = new Audio("lose.mp3");
 
 // Game data
 let phase = "waiting";
@@ -35,14 +35,14 @@ const perfectAreaSize = 10;
 
 const backgroundSpeedMultiplier = 0.2;
 
-// ⚡ VELOCIDAD MODIFICADA
+// VELOCIDAD MODIFICADA
 const stretchingSpeed = 2;
 const turningSpeed = 2;
 const walkingSpeed = 2;
 const transitioningSpeed = 2;
 const fallingSpeed = 2;
 
-// 🧍 TAMAÑO PERSONAJE
+// TAMAÑO MODIFICADO
 const heroWidth = 25;
 const heroHeight = 45;
 
@@ -121,7 +121,7 @@ window.addEventListener("keydown", (e) => {
   if (e.key === " ") resetGame();
 });
 
-// LOOP PRINCIPAL
+// LOOP
 function animate(timestamp) {
   if (!lastTimestamp) {
     lastTimestamp = timestamp;
@@ -135,3 +135,132 @@ function animate(timestamp) {
       break;
 
     case "turning":
+      sticks.last().rotation += (timestamp - lastTimestamp) / turningSpeed;
+
+      if (sticks.last().rotation >= 90) {
+        sticks.last().rotation = 90;
+
+        const [next, perfect] = checkHit();
+
+        if (next) {
+          // PUNTAJE MODIFICADO
+          score += perfect ? 10 : 5;
+          scoreElement.innerText = score;
+
+          sonidoGanar.play();
+
+          if (perfect) {
+            perfectElement.style.opacity = 1;
+            setTimeout(() => (perfectElement.style.opacity = 0), 1000);
+          }
+
+          generatePlatform();
+          phase = "walking";
+        } else {
+          phase = "falling";
+        }
+      }
+      break;
+
+    case "walking":
+      heroX += (timestamp - lastTimestamp) / walkingSpeed;
+
+      const [next] = checkHit();
+      if (next && heroX > next.x) {
+        phase = "waiting";
+        sticks.push({
+          x: next.x + next.w,
+          length: 0,
+          rotation: 0,
+        });
+      }
+      break;
+
+    case "falling":
+      heroY += (timestamp - lastTimestamp) / fallingSpeed;
+
+      if (heroY > canvasHeight) {
+        document.getElementById("gameover").style.display = "block";
+        restartButton.style.display = "block";
+        sonidoPerder.play();
+        return;
+      }
+      break;
+  }
+
+  draw();
+  requestAnimationFrame(animate);
+  lastTimestamp = timestamp;
+}
+
+// DETECCIÓN
+function checkHit() {
+  const stickEnd = sticks.last().x + sticks.last().length;
+
+  const platform = platforms.find(
+    (p) => stickEnd > p.x && stickEnd < p.x + p.w
+  );
+
+  if (
+    platform &&
+    stickEnd >
+      platform.x + platform.w / 2 - perfectAreaSize / 2 &&
+    stickEnd <
+      platform.x + platform.w / 2 + perfectAreaSize / 2
+  ) {
+    return [platform, true];
+  }
+
+  return [platform, false];
+}
+
+// DIBUJO
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  let gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, "#1E3C72");
+  gradient.addColorStop(1, "#2A5298");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawPlatforms();
+  drawHero();
+  drawSticks();
+}
+
+function drawPlatforms() {
+  platforms.forEach(({ x, w }) => {
+    ctx.fillStyle = "#4CAF50";
+    ctx.fillRect(x, canvasHeight - platformHeight, w, platformHeight);
+  });
+}
+
+function drawHero() {
+  ctx.fillStyle = "#FF5722";
+  ctx.fillRect(
+    heroX - heroWidth / 2,
+    canvasHeight - platformHeight - heroHeight,
+    heroWidth,
+    heroHeight
+  );
+}
+
+function drawSticks() {
+  sticks.forEach((stick) => {
+    ctx.save();
+    ctx.translate(stick.x, canvasHeight - platformHeight);
+    ctx.rotate((Math.PI / 180) * stick.rotation);
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, -stick.length);
+    ctx.stroke();
+
+    ctx.restore();
+  });
+}
+
+restartButton.addEventListener("click", () => {
+  resetGame();
+});
